@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Watermelon Catch</title>
+	<style>
+		html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial}
+		.wrap{display:flex;flex-direction:column;align-items:center;padding:12px}
+		canvas{background:linear-gradient(#87CEEB,#a6f0ff);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15)}
+		.ui{display:flex;gap:12px;margin:10px 0;align-items:center}
+		.panel{background:rgba(255,255,255,.9);padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+		button{padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer}
+		button:active{transform:translateY(1px)}
+		#shop{display:none;position:fixed;right:20px;top:20px;width:320px;background:rgba(255,255,255,.98);padding:12px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.2)}
+		#shop h3{margin:6px 0}
+		.upgrade{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #eee}
+		.small{font-size:13px;color:#666}
+		#msg{position:fixed;left:50%;transform:translateX(-50%);top:12px;background:rgba(0,0,0,.7);color:white;padding:6px 12px;border-radius:20px;display:none}
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<h1>Watermelon Catch</h1>
+		<div class="ui">
+			<div class="panel">Score: <strong id="score">0</strong></div>
+			<div class="panel">Coins: <strong id="coins">0</strong></div>
+			<div class="panel">Wave: <strong id="wave">1</strong></div>
+			<button id="shopBtn">Shop</button>
+			<button id="restartBtn">Restart</button>
+			<div class="panel small">Controls: mouse or ← → keys</div>
+		</div>
+		<canvas id="game" width="720" height="540"></canvas>
+	</div>
+
+	<div id="shop">
+		<h3>Shop & Upgrades</h3>
+		<div id="upgradesList"></div>
+		<div style="margin-top:10px;text-align:right"><button id="closeShop">Close</button></div>
+	</div>
+	<div id="msg"></div>
+
+	<script>
+	(function(){
+		const canvas = document.getElementById('game');
+		const ctx = canvas.getContext('2d');
+		const scoreEl = document.getElementById('score');
+		const coinsEl = document.getElementById('coins');
+		const waveEl = document.getElementById('wave');
+		const shopBtn = document.getElementById('shopBtn');
+		const shop = document.getElementById('shop');
+		const closeShop = document.getElementById('closeShop');
+		const upgradesList = document.getElementById('upgradesList');
+		const restartBtn = document.getElementById('restartBtn');
+		const msg = document.getElementById('msg');
+
+		const W = canvas.width, H = canvas.height;
+
+		class Basket{
+			constructor(){
+				this.w = 120; this.h = 28; this.x = W/2 - this.w/2; this.y = H - 40; this.speed = 8;
+			}
+			draw(){ ctx.fillStyle='#6b3'; ctx.fillRect(this.x,this.y,this.w,this.h); ctx.fillStyle='#442'; ctx.fillRect(this.x+6,this.y-6,this.w-12,6); }
+			moveTo(x){ this.x = Math.max(6, Math.min(W-this.w-6, x - this.w/2)); }
+			step(dir){ this.x = Math.max(6, Math.min(W-this.w-6, this.x + dir*this.speed)); }
+		}
+
+		class Watermelon{
+			constructor(x,y,vy,type='normal'){
+				this.x=x;this.y=y;this.vy=vy;this.type=type;this.r=type==='small'?14:22;this.caught=false;
+				this._setProps();
+			}
+			_setProps(){
+				const t=this.type;
+				if(t==='fast'){this.color='#ff6b6b';this.points=15;this.vy*=1.6}
+				else if(t==='gold'){this.color='#ffd86b';this.points=50; this.r=26}
+				else if(t==='heavy'){this.color='#9ae6b4';this.points=25; this.vy*=0.8; this.r=28}
+				else {this.color='#4caf50';this.points=10}
+			}
+			update(dt, effects){
+				this.y += this.vy * dt * (effects.slow ? 0.6 : 1);
+				if(effects.magnet){ /* pull towards basket center handled in game loop */ }
+			}
+			draw(){ ctx.beginPath(); ctx.fillStyle=this.color; ctx.ellipse(this.x,this.y,this.r,this.r*0.86,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#2c7'; ctx.fillRect(this.x-4,this.y-3,8,3); }
+		}
+
+		const state = {
+			basket: new Basket(),
+			watermelons: [],
+			score: 0,
+			coins: 0,
+			wave: 1,
+			spawnTimer:0,
+			spawnInterval:1.0,
+			running:true,
+			effects:{ slow:false, magnet:false, double:false },
+			upgrades:[],
+		};
+
+		const saved = JSON.parse(localStorage.getItem('wm_state')||'{}');
+		state.coins = saved.coins||0; state.score = saved.score||0; state.upgrades = saved.upgrades||[];
+
+		const baseTypes = ['normal','fast','gold','heavy'];
+
+		const upgrades = [
+			{id:'basket_size',name:'Wider Basket',desc:'Increase basket width',cost:50,level: saved.upgrades?.basket_size||0, max:5, apply(level){ state.basket.w = 120 + level*20 }},
+			{id:'basket_speed',name:'Basket Speed',desc:'Move basket faster',cost:80,level: saved.upgrades?.basket_speed||0, max:5, apply(level){ state.basket.speed = 8 + level*2 }},
+			{id:'slow',name:'Slow Fall',desc:'Slow watermelons',cost:100,level: saved.upgrades?.slow||0, max:3, apply(level){ state.effects.slow = level>0 }},
+			{id:'magnet',name:'Magnet',desc:'Attract watermelons',cost:150,level: saved.upgrades?.magnet||0, max:3, apply(level){ state.effects.magnet = level>0 }},
+			{id:'spawn_rate',name:'Spawn Rate',desc:'Increase spawn frequency',cost:180,level: saved.upgrades?.spawn_rate||0, max:5, apply(level){ state.spawnRateMultiplier = Math.max(0.35, 1 - 0.14*level) }},
+			{id:'double',name:'Double Points',desc:'Double points',cost:300,level: saved.upgrades?.double||0, max:1, apply(level){ state.effects.double = level>0 }},
+		];
+
+		function save(){
+			localStorage.setItem('wm_state', JSON.stringify({coins:state.coins,score:state.score,upgrades: Object.fromEntries(upgrades.map(u=>[u.id,u.level]))}));
+		}
+
+		function spawnWatermelon(){
+			const x = 20 + Math.random() * (W-40);
+			const baseVy = 80 + state.wave*10 + Math.random()*40;
+			const r = Math.random();
+			let type='normal';
+			if(r>0.985) type='gold';
+			else if(r>0.9) type='fast';
+			else if(r>0.8) type='heavy';
+			const w = new Watermelon(x,-30, baseVy, type);
+			state.watermelons.push(w);
+		}
+
+		let last = performance.now();
+		function loop(now){
+			const dt = (now-last)/1000; last=now;
+			update(dt);
+			draw();
+			if(state.running) requestAnimationFrame(loop);
+		}
+
+		function update(dt){
+			state.spawnTimer -= dt;
+			const effectiveInterval = (state.spawnInterval || 0.9) * (state.spawnRateMultiplier || 1);
+			if(state.spawnTimer <=0){ spawnWatermelon(); state.spawnTimer = effectiveInterval; }
+			// effects from upgrades
+			upgrades.forEach(u=>u.apply && u.apply(u.level));
+
+			// update watermelons
+			for(let i=state.watermelons.length-1;i>=0;i--){
+				const w = state.watermelons[i];
+				if(state.effects.magnet){ const bx = state.basket.x + state.basket.w/2; const dx = bx - w.x; w.x += dx*0.06; }
+				w.update(dt, state.effects);
+				if(w.y - w.r > H){ // missed
+					state.watermelons.splice(i,1);
+				} else if(collide(w, state.basket)){
+					catchWM(w);
+					state.watermelons.splice(i,1);
+				}
+			}
+			// slowly increase difficulty
+			if(Math.random() < 0.002) state.wave += 1;
+			// update UI
+			scoreEl.textContent = state.score;
+			coinsEl.textContent = state.coins;
+			waveEl.textContent = state.wave;
+		}
+
+		function catchWM(w){
+			const pts = state.effects.double ? w.points*2 : w.points;
+			state.score += pts; state.coins += Math.floor(pts/1);
+			showMsg('+'+pts+' pts');
+			save();
+		}
+
+		function collide(w,b){
+			return w.y + w.r > b.y && w.x > b.x && w.x < b.x + b.w;
+		}
+
+		function drawBackground(){
+			// subtle tiled watermelons for a pretty background
+			ctx.save();
+			ctx.globalAlpha = 0.09;
+			for(let y=40;y<H;y+=64){
+				for(let x=(y%128===0?20:60);x<W;x+=96){
+					drawDecorWatermelon(x,y,18,'#2e8b57');
+				}
+			}
+			ctx.restore();
+			// clouds
+			for(let i=0;i<6;i++){ ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.ellipse(80+i*110,60,40,20,0,0,Math.PI*2); ctx.fill(); }
+		}
+
+		function drawDecorWatermelon(x,y,r,color){
+			ctx.beginPath(); ctx.fillStyle = color; ctx.ellipse(x,y,r,r*0.86,0,0,Math.PI*2); ctx.fill();
+			ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(x-4,y-3,8,3);
+		}
+
+		function draw(){
+			ctx.clearRect(0,0,W,H);
+			drawBackground();
+			// draw watermelons
+			state.watermelons.forEach(w=>w.draw());
+			// draw basket
+			state.basket.draw();
+		}
+
+		// input
+		canvas.addEventListener('mousemove', e=>{
+			const rect = canvas.getBoundingClientRect(); state.basket.moveTo(e.clientX - rect.left);
+		});
+		let left=false,right=false;
+		window.addEventListener('keydown', e=>{ if(e.key==='ArrowLeft') left=true; if(e.key==='ArrowRight') right=true; });
+		window.addEventListener('keyup', e=>{ if(e.key==='ArrowLeft') left=false; if(e.key==='ArrowRight') right=false; });
+		function keyStep(){ if(left) state.basket.step(-1); if(right) state.basket.step(1); }
+		setInterval(keyStep,16);
+
+		// shop UI
+		function renderShop(){
+			upgradesList.innerHTML='';
+			upgrades.forEach(u=>{
+				const div = document.createElement('div'); div.className='upgrade';
+				const left = document.createElement('div'); left.innerHTML = `<strong>${u.name}</strong><div class="small">${u.desc}</div>`;
+				const right = document.createElement('div');
+				const cost = u.cost * Math.max(1, Math.pow(1.6, u.level));
+				right.innerHTML = `<div style="text-align:right">Level ${u.level}/${u.max}<div class="small">Cost: ${Math.floor(cost)}</div></div>`;
+				const buy = document.createElement('button'); buy.textContent='Buy'; buy.style.marginLeft='8px';
+				buy.disabled = u.level>=u.max || state.coins < Math.floor(cost);
+				buy.onclick = ()=>{ if(state.coins >= Math.floor(cost) && u.level < u.max){ state.coins -= Math.floor(cost); u.level++; if(u.apply) u.apply(u.level); showMsg('Purchased '+u.name); save(); renderShop(); } };
+				right.appendChild(buy);
+				div.appendChild(left); div.appendChild(right);
+				upgradesList.appendChild(div);
+			});
+		}
+
+		shopBtn.onclick = ()=>{ shop.style.display='block'; renderShop(); };
+		closeShop.onclick = ()=>{ shop.style.display='none'; };
+		restartBtn.onclick = ()=>{ if(confirm('Restart game?')) resetGame(); };
+
+		function resetGame(){ state.score=0; state.coins=0; state.wave=1; state.watermelons=[]; upgrades.forEach(u=>u.level=0); save(); }
+
+		function showMsg(t){ msg.textContent = t; msg.style.display='block'; clearTimeout(msg._t); msg._t = setTimeout(()=>msg.style.display='none',900); }
+
+		// initialize upgrades levels from saved
+		upgrades.forEach(u=>{ u.level = (saved.upgrades && saved.upgrades[u.id])||0; if(u.apply) u.apply(u.level); });
+
+		// start spawn pace
+		state.spawnInterval = 0.9;
+		state.spawnTimer = 0.5;
+
+		requestAnimationFrame(loop);
+		// autosave periodically
+		setInterval(save,5000);
+
+		// small performance/tuning: increase spawn rate slowly
+		setInterval(()=>{ state.spawnInterval = Math.max(0.35, state.spawnInterval - 0.01); },5000);
+
+	})();
+	</script>
+</body>
+</html>
