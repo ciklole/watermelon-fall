@@ -5,30 +5,75 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
 	<title>Watermelon Catch</title>
 	<style>
-		html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;overflow-x:hidden}
-		.wrap{display:flex;flex-direction:column;align-items:center;padding:12px;max-width:100%}
-		canvas{max-width:95vw;max-height:75vh;background:linear-gradient(#87CEEB,#a6f0ff);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);display:block}
-		.ui{display:flex;gap:12px;margin:10px 0;align-items:center;flex-wrap:wrap;justify-content:center}
-		.panel{background:rgba(255,255,255,.9);padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-		button{padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer}
+		html,body{height:100%;width:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;overflow:hidden;background:#000}
+		.wrap{position:fixed;top:0;left:0;width:100vw;height:100vh;padding:0;margin:0;display:block}
+		h1{display:none}
+		canvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block;background:linear-gradient(#87CEEB,#a6f0ff)}
+		.ui{position:fixed;left:-380px;top:0;width:360px;height:100vh;background:rgba(255,255,255,0.95);padding:10px;border-radius:0;z-index:100;overflow-y:auto;transition:left 0.3s ease;box-shadow:2px 0 10px rgba(0,0,0,0.2)}
+		.ui.open{left:0}
+		.ui-toggle{position:fixed;left:10px;top:10px;z-index:99;background:rgba(255,255,255,0.9);border:none;width:40px;height:40px;border-radius:8px;cursor:pointer;font-size:18px;transition:all 0.3s}
+		.ui-toggle:hover{background:rgba(255,255,255,1);transform:scale(1.1)}
+		.ui h2{margin-top:0;font-size:18px}
+		.panel{background:rgba(220,220,220,0.8);padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:14px}
+		.panel strong{font-size:16px}
+		button{padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;transition:all 0.2s}
+		button:hover{background:#f0f0f0;transform:scale(1.05)}
 		button:active{transform:translateY(1px)}
-		#shop{display:none;position:fixed;right:20px;top:20px;width:320px;background:rgba(255,255,255,.98);padding:12px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.2)}
+		#menu{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;z-index:200;flex-direction:column;gap:20px}
+		#menu.hidden{display:none}
+		#menu h1{display:block;color:white;font-size:48px;margin:0;text-shadow:2px 2px 4px rgba(0,0,0,0.3)}
+		#menu p{color:white;font-size:18px;text-align:center;max-width:500px}
+		#menu button{padding:15px 40px;font-size:18px;margin:10px;background:white;color:#667eea;font-weight:bold;border:none}
+		#menu button:hover{background:#f0f0f0}
+		#shop{display:none;position:fixed;right:20px;top:20px;width:320px;background:rgba(255,255,255,.98);padding:12px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.2);z-index:101;max-height:80vh;overflow-y:auto}
 		#shop h3{margin:6px 0}
-		.upgrade{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #eee}
+		.upgrade{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #eee;font-size:12px}
 		.small{font-size:13px;color:#666}
-		#msg{position:fixed;left:50%;transform:translateX(-50%);top:12px;background:rgba(0,0,0,.7);color:white;padding:6px 12px;border-radius:20px;display:none}
+		#msg{position:fixed;left:50%;transform:translateX(-50%);top:12px;background:rgba(0,0,0,.7);color:white;padding:6px 12px;border-radius:20px;display:none;z-index:102;font-size:14px}
+		.speed-display{position:fixed;right:15px;top:15px;background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:8px;font-weight:bold;z-index:99}
+		#minigame{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#FFD700 0%,#FFA500 100%);display:flex;align-items:center;justify-content:center;z-index:200;flex-direction:column;gap:20px}
+		#minigame.hidden{display:none}
+		#minigame h1{display:block;color:white;font-size:42px;margin:0;text-shadow:2px 2px 4px rgba(0,0,0,0.3)}
+		#minigame p{color:white;font-size:20px;text-align:center;max-width:500px}
+		.minigame-stats{background:rgba(255,255,255,0.9);padding:20px;border-radius:12px;font-size:24px;font-weight:bold;text-align:center;min-width:300px}
+		.minigame-stats div{margin:10px 0}
+		#minigameTimer{font-size:36px;color:#FF6B6B}
+		.secret-btn{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.7);border:2px dashed #ccc;padding:8px 16px;border-radius:8px;cursor:pointer;z-index:99;font-size:12px;opacity:0.5;transition:all 0.3s}
+		.secret-btn:hover{opacity:1;background:rgba(255,255,0,0.7)}
 	</style>
 </head>
 <body>
+	<div id="menu">
+		<h1>🍉 Watermelon Catch 🍉</h1>
+		<p>Catch the falling watermelons! Use the mouse or arrow keys.</p>
+		<button id="startBtn">Start Game</button>
+		<p style="font-size:12px;opacity:0.7">🔑 Hint: Press 'G' during the game for a surprise!</p>
+	</div>
+	<div id="minigame" class="hidden">
+		<h1>💰 GOLDEN RUSH 💰</h1>
+		<p>Catch ONLY golden watermelons for bonus coins!</p>
+		<div class="minigame-stats">
+			<div>Time: <span id="minigameTimer">30</span>s</div>
+			<div>Golden Caught: <span id="minigameCaught">0</span></div>
+			<div>Bonus Coins: <span id="minigameCoins">0</span></div>
+		</div>
+	</div>
+	<button class="secret-btn" id="secretBtn" title="Try pressing G!">🔐 Secret</button>
+	<button class="ui-toggle" id="uiToggle">☰</button>
+	<div class="speed-display">Speed: <span id="speedValue">1.0x</span></div>
 	<div class="wrap">
 		<h1>Watermelon Catch</h1>
-		<div class="ui">
+		<div class="ui" id="uiPanel">
+			<h2>Stats</h2>
 			<div class="panel">Score: <strong id="score">0</strong></div>
 			<div class="panel">Coins: <strong id="coins">0</strong></div>
 			<div class="panel">Wave: <strong id="wave">1</strong></div>
-			<button id="shopBtn">Shop</button>
-			<button id="restartBtn">Restart</button>
-			<div class="panel small">Controls: mouse or ← → keys</div>
+			<hr>
+			<h2>Controls</h2>
+			<div class="small" style="margin-bottom:10px">🖱️ Mouse to move basket<br>⬅️ ➡️ Arrow keys</div>
+			<button id="shopBtn" style="width:100%;margin-bottom:8px">Shop & Upgrades</button>
+			<button id="restartBtn" style="width:100%;margin-bottom:8px">Restart Game</button>
+			<button id="menuBtn" style="width:100%">Back to Menu</button>
 		</div>
 		<canvas id="game"></canvas>
 	</div>
@@ -47,22 +92,69 @@
 		const scoreEl = document.getElementById('score');
 		const coinsEl = document.getElementById('coins');
 		const waveEl = document.getElementById('wave');
+		const uiPanel = document.getElementById('uiPanel');
+		const uiToggle = document.getElementById('uiToggle');
+		const menu = document.getElementById('menu');
+		const startBtn = document.getElementById('startBtn');
+		const restartBtn = document.getElementById('restartBtn');
+		const menuBtn = document.getElementById('menuBtn');
 		const shopBtn = document.getElementById('shopBtn');
 		const shop = document.getElementById('shop');
 		const closeShop = document.getElementById('closeShop');
 		const upgradesList = document.getElementById('upgradesList');
-		const restartBtn = document.getElementById('restartBtn');
 		const msg = document.getElementById('msg');
+		const speedValue = document.getElementById('speedValue');
+		const minigame = document.getElementById('minigame');
+		const secretBtn = document.getElementById('secretBtn');
+		const minigameTimer = document.getElementById('minigameTimer');
+		const minigameCaught = document.getElementById('minigameCaught');
+		const minigameCoins = document.getElementById('minigameCoins');
 
-		// Calculate responsive canvas dimensions
+		// Menu controls
+		function showMenu(){ menu.classList.remove('hidden'); state.running = false; }
+		function hideMenu(){ menu.classList.add('hidden'); state.running = true; }
+		startBtn.onclick = ()=>{ resetGame(); hideMenu(); };
+		menuBtn.onclick = ()=>{ showMenu(); };
+		restartBtn.onclick = ()=>{ if(confirm('Restart game?')) { resetGame(); hideMenu(); } };
+		
+		// Secret mini-game controls
+		function startMiniGame(){
+			if(!state.running) return;
+			state.inMiniGame = true;
+			state.miniGameTime = 30;
+			state.miniGameCaught = 0;
+			state.miniGameCoins = 0;
+			state.miniGamePaused = true;
+			minigame.classList.remove('hidden');
+			secretBtn.textContent = 'Playing...';
+			secretBtn.disabled = true;
+			setTimeout(()=>{
+				state.miniGamePaused = false;
+				secretBtn.textContent = 'Go!';
+			}, 2000);
+		}
+		
+		function endMiniGame(){
+			state.inMiniGame = false;
+			state.coins += state.miniGameCoins;
+			minigame.classList.add('hidden');
+			secretBtn.textContent = '🔐 Secret';
+			secretBtn.disabled = false;
+			showMsg(`Golden Rush Complete! +${state.miniGameCoins} bonus coins!`);
+			save();
+		}
+		
+		secretBtn.onclick = startMiniGame;
+		window.addEventListener('keydown', e=>{
+			if((e.key === 'g' || e.key === 'G') && state.running && !state.inMiniGame) startMiniGame();
+		});
+		
+		// UI toggle
+		uiToggle.onclick = ()=>{ uiPanel.classList.toggle('open'); };
+
+		// Calculate fullscreen canvas dimensions
 		function getCanvasDimensions(){
-			const maxWidth = Math.min(window.innerWidth * 0.95, 720);
-			const maxHeight = Math.min(window.innerHeight * 0.75, 540);
-			const aspectRatio = 720 / 540;
-			let w = maxWidth;
-			let h = w / aspectRatio;
-			if(h > maxHeight){ h = maxHeight; w = h * aspectRatio; }
-			return { w: Math.floor(w), h: Math.floor(h) };
+			return { w: window.innerWidth, h: window.innerHeight };
 		}
 
 		function resizeCanvas(){
@@ -96,7 +188,19 @@
 				this.y = H - (40 * H / 540);
 				this.speed = 8 * (W / 720);
 			}
-			draw(){ ctx.fillStyle='#6b3'; ctx.fillRect(this.x,this.y,this.w,this.h); ctx.fillStyle='#442'; ctx.fillRect(this.x+6,this.y-6,this.w-12,6); }
+			draw(){ 
+				ctx.fillStyle='#6b3'; 
+				ctx.fillRect(this.x,this.y,this.w,this.h); 
+				ctx.fillStyle='#442'; 
+				ctx.fillRect(this.x+6,this.y-6,this.w-12,6);
+				// glow effect
+				ctx.shadowColor = 'rgba(107, 187, 51, 0.5)';
+				ctx.shadowBlur = 10;
+				ctx.strokeStyle = '#4a8a2a';
+				ctx.lineWidth = 2;
+				ctx.strokeRect(this.x,this.y,this.w,this.h);
+				ctx.shadowBlur = 0;
+			}
 			moveTo(x){ this.x = Math.max(6, Math.min(W-this.w-6, x - this.w/2)); }
 			step(dir){ this.x = Math.max(6, Math.min(W-this.w-6, this.x + dir*this.speed)); }
 		}
@@ -105,22 +209,41 @@
 			constructor(x,y,vy,type='normal'){
 				this.x=x;this.y=y;this.vy=vy;this.type=type;this.r=type==='small'?14:22;this.caught=false;
 				this.baseR = this.r;
+				this.rotation = 0;
+				this.rotationSpeed = Math.random() * 6 + 3;
 				this._setProps();
 			}
 			_setProps(){
 				const t=this.type;
 				const scale = W / 720;
-				if(t==='fast'){this.color='#ff6b6b';this.points=15;this.vy*=1.6}
+				if(t==='fast'){this.color='#ff6b6b';this.points=15;this.vy*=1.6;this.rotationSpeed*=1.5}
 				else if(t==='gold'){this.color='#ffd86b';this.points=50; this.r=26*scale}
-				else if(t==='heavy'){this.color='#9ae6b4';this.points=25; this.vy*=0.8; this.r=28*scale}
+				else if(t==='heavy'){this.color='#9ae6b4';this.points=25; this.vy*=0.8; this.r=28*scale;this.rotationSpeed*=0.6}
 				else {this.color='#4caf50';this.points=10}
 				if(t !== 'gold' && t !== 'heavy') this.r = this.baseR * scale;
 			}
 			update(dt, effects){
-				this.y += this.vy * dt * (effects.slow ? 0.6 : 1);
+				this.y += this.vy * dt * (effects.slow ? 0.6 : 1) * state.gameSpeed;
+				this.rotation += this.rotationSpeed * dt;
 				if(effects.magnet){ /* pull towards basket center handled in game loop */ }
 			}
-			draw(){ ctx.beginPath(); ctx.fillStyle=this.color; ctx.ellipse(this.x,this.y,this.r,this.r*0.86,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#2c7'; ctx.fillRect(this.x-4,this.y-3,8,3); }
+			draw(){ 
+				ctx.save();
+				ctx.translate(this.x, this.y);
+				ctx.rotate(this.rotation);
+				ctx.beginPath(); 
+				ctx.fillStyle=this.color; 
+				ctx.ellipse(0,0,this.r,this.r*0.86,0,0,Math.PI*2); 
+				ctx.fill();
+				ctx.fillStyle='#2c7'; 
+				ctx.fillRect(-4,-3,8,3);
+				// shimmer effect
+				ctx.fillStyle='rgba(255,255,255,0.3)';
+				ctx.beginPath();
+				ctx.ellipse(-this.r*0.3, -this.r*0.3, this.r*0.3, this.r*0.2, 0, 0, Math.PI*2);
+				ctx.fill();
+				ctx.restore();
+			}
 		}
 
 		const state = {
@@ -131,7 +254,13 @@
 			wave: 1,
 			spawnTimer:0,
 			spawnInterval:1.0,
-			running:true,
+			running:false,
+			gameSpeed: 1.0,
+			inMiniGame: false,
+			miniGameTime: 0,
+			miniGameCaught: 0,
+			miniGameCoins: 0,
+			miniGamePaused: false,
 			effects:{ slow:false, magnet:false, double:false },
 			upgrades:[],
 		};
@@ -144,11 +273,14 @@
 
 		const upgrades = [
 			{id:'basket_size',name:'Wider Basket',desc:'Increase basket width',cost:50,level: saved.upgrades?.basket_size||0, max:5, apply(level){ state.basket.baseW = 120 + level*20; state.basket.scaleToCanvas(); }},
-			{id:'basket_speed',name:'Basket Speed',desc:'Move basket faster',cost:80,level: saved.upgrades?.basket_speed||0, max:5, apply(level){ state.basket.speed = (8 + level*2) * (W/720); }},
-			{id:'slow',name:'Slow Fall',desc:'Slow watermelons',cost:100,level: saved.upgrades?.slow||0, max:3, apply(level){ state.effects.slow = level>0 }},
-			{id:'magnet',name:'Magnet',desc:'Attract watermelons',cost:150,level: saved.upgrades?.magnet||0, max:3, apply(level){ state.effects.magnet = level>0 }},
-			{id:'spawn_rate',name:'Spawn Rate',desc:'Increase spawn frequency',cost:180,level: saved.upgrades?.spawn_rate||0, max:5, apply(level){ state.spawnRateMultiplier = Math.max(0.35, 1 - 0.14*level) }},
-			{id:'double',name:'Double Points',desc:'Double points',cost:300,level: saved.upgrades?.double||0, max:1, apply(level){ state.effects.double = level>0 }},
+			{id:'basket_speed',name:'Basket Speed',desc:'Move faster',cost:80,level: saved.upgrades?.basket_speed||0, max:5, apply(level){ state.basket.speed = (8 + level*2) * (W/720); }},
+			{id:'slow',name:'Slow Fall',desc:'Slow watermelons down',cost:100,level: saved.upgrades?.slow||0, max:3, apply(level){ state.effects.slow = level>0 }},
+			{id:'magnet',name:'Magnet Field',desc:'Attract watermelons',cost:150,level: saved.upgrades?.magnet||0, max:3, apply(level){ state.effects.magnet = level>0 }},
+			{id:'spawn_rate',name:'Spawn Rate',desc:'More watermelons',cost:180,level: saved.upgrades?.spawn_rate||0, max:5, apply(level){ state.spawnRateMultiplier = Math.max(0.35, 1 - 0.14*level) }},
+			{id:'double',name:'Double Points',desc:'2x points earned',cost:300,level: saved.upgrades?.double||0, max:1, apply(level){ state.effects.double = level>0 }},
+			{id:'game_speed',name:'Speed Boost',desc:'Game runs faster',cost:120,level: saved.upgrades?.game_speed||0, max:5, apply(level){ state.gameSpeed = 1.0 + level*0.2; }},
+			{id:'coin_multiplier',name:'Coin Riches',desc:'Earn more coins',cost:200,level: saved.upgrades?.coin_multiplier||0, max:4, apply(level){ state.coinMultiplier = 1.0 + level*0.25; }},
+			{id:'combo',name:'Combo Streak',desc:'Bonus for catches',cost:250,level: saved.upgrades?.combo||0, max:3, apply(level){ state.comboEnabled = level>0; state.comboMultiplier = level; }},
 		];
 
 		function save(){
@@ -158,11 +290,16 @@
 		function spawnWatermelon(){
 			const x = (W * 20/720) + Math.random() * (W - (40 * W/720));
 			const baseVy = 80 + state.wave*10 + Math.random()*40;
-			const r = Math.random();
 			let type='normal';
-			if(r>0.985) type='gold';
-			else if(r>0.9) type='fast';
-			else if(r>0.8) type='heavy';
+			
+			if(state.inMiniGame && !state.miniGamePaused){
+				type = 'gold';
+			} else {
+				const r = Math.random();
+				if(r>0.985) type='gold';
+				else if(r>0.9) type='fast';
+				else if(r>0.8) type='heavy';
+			}
 			const w = new Watermelon(x,-30, baseVy, type);
 			state.watermelons.push(w);
 		}
@@ -172,13 +309,26 @@
 			const dt = (now-last)/1000; last=now;
 			update(dt);
 			draw();
-			if(state.running) requestAnimationFrame(loop);
+			requestAnimationFrame(loop);
 		}
 
 		function update(dt){
+			if(!state.running) return;
+			
+			// Mini-game timer
+			if(state.inMiniGame && !state.miniGamePaused){
+				state.miniGameTime -= dt;
+				minigameTimer.textContent = Math.max(0, Math.ceil(state.miniGameTime));
+				if(state.miniGameTime <= 0){
+					endMiniGame();
+					return;
+				}
+			}
+			
 			state.spawnTimer -= dt;
 			const effectiveInterval = (state.spawnInterval || 0.9) * (state.spawnRateMultiplier || 1);
-			if(state.spawnTimer <=0){ spawnWatermelon(); state.spawnTimer = effectiveInterval; }
+			const spawnRate = state.inMiniGame ? effectiveInterval * 0.5 : effectiveInterval;
+			if(state.spawnTimer <=0){ spawnWatermelon(); state.spawnTimer = spawnRate; }
 			// effects from upgrades
 			upgrades.forEach(u=>u.apply && u.apply(u.level));
 
@@ -200,12 +350,36 @@
 			scoreEl.textContent = state.score;
 			coinsEl.textContent = state.coins;
 			waveEl.textContent = state.wave;
+			speedValue.textContent = state.gameSpeed.toFixed(1) + 'x';
 		}
 
+		let comboCatch = 0;
 		function catchWM(w){
-			const pts = state.effects.double ? w.points*2 : w.points;
-			state.score += pts; state.coins += Math.floor(pts/1);
-			showMsg('+'+pts+' pts');
+			if(state.inMiniGame && !state.miniGamePaused){
+				if(w.type === 'gold'){
+					state.miniGameCaught++;
+					const bonus = Math.floor(100 * (1 + state.miniGameCaught * 0.05));
+					state.miniGameCoins += bonus;
+					minigameCaught.textContent = state.miniGameCaught;
+					minigameCoins.textContent = state.miniGameCoins;
+					showMsg(`+${bonus} coins!`);
+				} else {
+					showMsg('-10 penalty (wrong type!)');
+					state.miniGameCoins = Math.max(0, state.miniGameCoins - 10);
+					minigameCoins.textContent = state.miniGameCoins;
+				}
+			} else {
+				let pts = state.effects.double ? w.points*2 : w.points;
+				if(state.comboEnabled) {
+					comboCatch++;
+					pts = Math.floor(pts * (1 + comboCatch * 0.1));
+				}
+				state.score += pts;
+				const coins = Math.floor(pts / 1 * (state.coinMultiplier || 1));
+				state.coins += coins;
+				const msg_text = state.comboEnabled && comboCatch > 1 ? `+${pts} pts (${comboCatch}x!)` : `+${pts} pts`;
+				showMsg(msg_text);
+			}
 			save();
 		}
 
@@ -226,7 +400,12 @@
 			ctx.restore();
 			// clouds
 			const cloudScale = scale;
-			for(let i=0;i<6;i++){ ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.ellipse((80+i*110)*cloudScale,60*cloudScale,40*cloudScale,20*cloudScale,0,0,Math.PI*2); ctx.fill(); }
+			for(let i=0;i<6;i++){ 
+				ctx.fillStyle='rgba(255,255,255,0.6)'; 
+				ctx.beginPath(); 
+				ctx.ellipse((80+i*110)*cloudScale,60*cloudScale,40*cloudScale,20*cloudScale,0,0,Math.PI*2); 
+				ctx.fill(); 
+			}
 		}
 
 		function drawDecorWatermelon(x,y,r,color){
@@ -273,9 +452,17 @@
 
 		shopBtn.onclick = ()=>{ shop.style.display='block'; renderShop(); };
 		closeShop.onclick = ()=>{ shop.style.display='none'; };
-		restartBtn.onclick = ()=>{ if(confirm('Restart game?')) resetGame(); };
 
-		function resetGame(){ state.score=0; state.coins=0; state.wave=1; state.watermelons=[]; upgrades.forEach(u=>u.level=0); save(); }
+		function resetGame(){ 
+			state.score=0; 
+			state.coins=0; 
+			state.wave=1; 
+			state.watermelons=[]; 
+			state.gameSpeed = 1.0;
+			comboCatch = 0;
+			upgrades.forEach(u=>u.level=0); 
+			save(); 
+		}
 
 		function showMsg(t){ msg.textContent = t; msg.style.display='block'; clearTimeout(msg._t); msg._t = setTimeout(()=>msg.style.display='none',900); }
 
@@ -291,7 +478,7 @@
 		setInterval(save,5000);
 
 		// small performance/tuning: increase spawn rate slowly
-		setInterval(()=>{ state.spawnInterval = Math.max(0.35, state.spawnInterval - 0.01); },5000);
+		setInterval(()=>{ if(state.running) state.spawnInterval = Math.max(0.35, state.spawnInterval - 0.01); },5000);
 
 	})();
 	</script>
