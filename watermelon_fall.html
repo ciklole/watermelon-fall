@@ -5,10 +5,10 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
 	<title>Watermelon Catch</title>
 	<style>
-		html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial}
-		.wrap{display:flex;flex-direction:column;align-items:center;padding:12px}
-		canvas{background:linear-gradient(#87CEEB,#a6f0ff);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15)}
-		.ui{display:flex;gap:12px;margin:10px 0;align-items:center}
+		html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;overflow-x:hidden}
+		.wrap{display:flex;flex-direction:column;align-items:center;padding:12px;max-width:100%}
+		canvas{max-width:95vw;max-height:75vh;background:linear-gradient(#87CEEB,#a6f0ff);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);display:block}
+		.ui{display:flex;gap:12px;margin:10px 0;align-items:center;flex-wrap:wrap;justify-content:center}
 		.panel{background:rgba(255,255,255,.9);padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 		button{padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer}
 		button:active{transform:translateY(1px)}
@@ -30,7 +30,7 @@
 			<button id="restartBtn">Restart</button>
 			<div class="panel small">Controls: mouse or ← → keys</div>
 		</div>
-		<canvas id="game" width="720" height="540"></canvas>
+		<canvas id="game"></canvas>
 	</div>
 
 	<div id="shop">
@@ -54,11 +54,47 @@
 		const restartBtn = document.getElementById('restartBtn');
 		const msg = document.getElementById('msg');
 
-		const W = canvas.width, H = canvas.height;
+		// Calculate responsive canvas dimensions
+		function getCanvasDimensions(){
+			const maxWidth = Math.min(window.innerWidth * 0.95, 720);
+			const maxHeight = Math.min(window.innerHeight * 0.75, 540);
+			const aspectRatio = 720 / 540;
+			let w = maxWidth;
+			let h = w / aspectRatio;
+			if(h > maxHeight){ h = maxHeight; w = h * aspectRatio; }
+			return { w: Math.floor(w), h: Math.floor(h) };
+		}
+
+		function resizeCanvas(){
+			const dims = getCanvasDimensions();
+			canvas.width = dims.w;
+			canvas.height = dims.h;
+		}
+
+		resizeCanvas();
+		let W = canvas.width, H = canvas.height;
+
+		window.addEventListener('resize', ()=>{
+			resizeCanvas();
+			W = canvas.width;
+			H = canvas.height;
+			state.basket.scaleToCanvas();
+		});
 
 		class Basket{
 			constructor(){
-				this.w = 120; this.h = 28; this.x = W/2 - this.w/2; this.y = H - 40; this.speed = 8;
+				this.baseW = 120;
+				this.w = this.baseW;
+				this.h = 28;
+				this.x = W/2 - this.w/2;
+				this.y = H - 40;
+				this.speed = 8;
+			}
+			scaleToCanvas(){
+				this.w = (W / 720) * this.baseW;
+				this.h = (H / 540) * 28;
+				this.y = H - (40 * H / 540);
+				this.speed = 8 * (W / 720);
 			}
 			draw(){ ctx.fillStyle='#6b3'; ctx.fillRect(this.x,this.y,this.w,this.h); ctx.fillStyle='#442'; ctx.fillRect(this.x+6,this.y-6,this.w-12,6); }
 			moveTo(x){ this.x = Math.max(6, Math.min(W-this.w-6, x - this.w/2)); }
@@ -68,14 +104,17 @@
 		class Watermelon{
 			constructor(x,y,vy,type='normal'){
 				this.x=x;this.y=y;this.vy=vy;this.type=type;this.r=type==='small'?14:22;this.caught=false;
+				this.baseR = this.r;
 				this._setProps();
 			}
 			_setProps(){
 				const t=this.type;
+				const scale = W / 720;
 				if(t==='fast'){this.color='#ff6b6b';this.points=15;this.vy*=1.6}
-				else if(t==='gold'){this.color='#ffd86b';this.points=50; this.r=26}
-				else if(t==='heavy'){this.color='#9ae6b4';this.points=25; this.vy*=0.8; this.r=28}
+				else if(t==='gold'){this.color='#ffd86b';this.points=50; this.r=26*scale}
+				else if(t==='heavy'){this.color='#9ae6b4';this.points=25; this.vy*=0.8; this.r=28*scale}
 				else {this.color='#4caf50';this.points=10}
+				if(t !== 'gold' && t !== 'heavy') this.r = this.baseR * scale;
 			}
 			update(dt, effects){
 				this.y += this.vy * dt * (effects.slow ? 0.6 : 1);
@@ -96,6 +135,7 @@
 			effects:{ slow:false, magnet:false, double:false },
 			upgrades:[],
 		};
+		state.basket.scaleToCanvas();
 
 		const saved = JSON.parse(localStorage.getItem('wm_state')||'{}');
 		state.coins = saved.coins||0; state.score = saved.score||0; state.upgrades = saved.upgrades||[];
@@ -103,8 +143,8 @@
 		const baseTypes = ['normal','fast','gold','heavy'];
 
 		const upgrades = [
-			{id:'basket_size',name:'Wider Basket',desc:'Increase basket width',cost:50,level: saved.upgrades?.basket_size||0, max:5, apply(level){ state.basket.w = 120 + level*20 }},
-			{id:'basket_speed',name:'Basket Speed',desc:'Move basket faster',cost:80,level: saved.upgrades?.basket_speed||0, max:5, apply(level){ state.basket.speed = 8 + level*2 }},
+			{id:'basket_size',name:'Wider Basket',desc:'Increase basket width',cost:50,level: saved.upgrades?.basket_size||0, max:5, apply(level){ state.basket.baseW = 120 + level*20; state.basket.scaleToCanvas(); }},
+			{id:'basket_speed',name:'Basket Speed',desc:'Move basket faster',cost:80,level: saved.upgrades?.basket_speed||0, max:5, apply(level){ state.basket.speed = (8 + level*2) * (W/720); }},
 			{id:'slow',name:'Slow Fall',desc:'Slow watermelons',cost:100,level: saved.upgrades?.slow||0, max:3, apply(level){ state.effects.slow = level>0 }},
 			{id:'magnet',name:'Magnet',desc:'Attract watermelons',cost:150,level: saved.upgrades?.magnet||0, max:3, apply(level){ state.effects.magnet = level>0 }},
 			{id:'spawn_rate',name:'Spawn Rate',desc:'Increase spawn frequency',cost:180,level: saved.upgrades?.spawn_rate||0, max:5, apply(level){ state.spawnRateMultiplier = Math.max(0.35, 1 - 0.14*level) }},
@@ -116,7 +156,7 @@
 		}
 
 		function spawnWatermelon(){
-			const x = 20 + Math.random() * (W-40);
+			const x = (W * 20/720) + Math.random() * (W - (40 * W/720));
 			const baseVy = 80 + state.wave*10 + Math.random()*40;
 			const r = Math.random();
 			let type='normal';
@@ -175,16 +215,18 @@
 
 		function drawBackground(){
 			// subtle tiled watermelons for a pretty background
+			const scale = W / 720;
 			ctx.save();
 			ctx.globalAlpha = 0.09;
-			for(let y=40;y<H;y+=64){
-				for(let x=(y%128===0?20:60);x<W;x+=96){
-					drawDecorWatermelon(x,y,18,'#2e8b57');
+			for(let y=40*scale;y<H;y+=64*scale){
+				for(let x=(y%(128*scale)===0?20*scale:60*scale);x<W;x+=96*scale){
+					drawDecorWatermelon(x,y,18*scale,'#2e8b57');
 				}
 			}
 			ctx.restore();
 			// clouds
-			for(let i=0;i<6;i++){ ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.ellipse(80+i*110,60,40,20,0,0,Math.PI*2); ctx.fill(); }
+			const cloudScale = scale;
+			for(let i=0;i<6;i++){ ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.ellipse((80+i*110)*cloudScale,60*cloudScale,40*cloudScale,20*cloudScale,0,0,Math.PI*2); ctx.fill(); }
 		}
 
 		function drawDecorWatermelon(x,y,r,color){
