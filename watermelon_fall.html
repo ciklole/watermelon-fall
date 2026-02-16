@@ -1,661 +1,885 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width,initial-scale=1" />
-	<title>Watermelon Catch</title>
-	<style>
-		html,body{height:100%;width:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;overflow:hidden;background:#000}
-		@keyframes comboPulse{0%{transform:translateX(-50%) scale(0.8);opacity:0}50%{transform:translateX(-50%) scale(1.2)}100%{transform:translateX(-50%) scale(1);opacity:1}}
-		@keyframes shimmer{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-		.wrap{position:fixed;top:0;left:0;width:100vw;height:100vh;padding:0;margin:0;display:block}
-		h1{display:none}
-		canvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block;background:linear-gradient(#87CEEB,#a6f0ff)}
-		.ui{position:fixed;left:-380px;top:0;width:360px;height:100vh;background:rgba(255,255,255,0.95);padding:10px;border-radius:0;z-index:100;overflow-y:auto;transition:left 0.3s ease;box-shadow:2px 0 10px rgba(0,0,0,0.2)}
-		.ui.open{left:0}
-		.ui-toggle{position:fixed;left:10px;top:10px;z-index:101;background:rgba(255,255,255,0.9);border:none;width:40px;height:40px;border-radius:8px;cursor:pointer;font-size:18px;transition:all 0.3s}
-		.ui-toggle:hover{background:rgba(255,255,255,1);transform:scale(1.1)}
-		.ui h2{margin-top:0;font-size:18px}
-		.panel{background:rgba(220,220,220,0.8);padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:14px}
-		.panel strong{font-size:16px}
-		button{padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;transition:all 0.2s}
-		button:hover{background:#f0f0f0;transform:scale(1.05)}
-		button:active{transform:translateY(1px)}
-		#menu{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;z-index:200;flex-direction:column;gap:20px}
-		#menu.hidden{display:none}
-		#menu h1{display:block;color:white;font-size:48px;margin:0;text-shadow:2px 2px 4px rgba(0,0,0,0.3)}
-		#menu p{color:white;font-size:18px;text-align:center;max-width:500px}
-		#menu button{padding:15px 40px;font-size:18px;margin:10px;background:white;color:#667eea;font-weight:bold;border:none}
-		#menu button:hover{background:#f0f0f0}
-		#shop{display:none;position:fixed;right:20px;top:20px;width:320px;background:rgba(255,255,255,.98);padding:12px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.2);z-index:101;max-height:80vh;overflow-y:auto}
-		#shop h3{margin:6px 0}
-		.upgrade{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #eee;font-size:12px}
-		.small{font-size:13px;color:#666}
-		#msg{position:fixed;left:50%;transform:translateX(-50%);top:12px;background:rgba(0,0,0,.7);color:white;padding:6px 12px;border-radius:20px;display:none;z-index:102;font-size:14px}
-		.speed-display{position:fixed;right:15px;top:15px;background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:8px;font-weight:bold;z-index:99}
-		.combo-display{position:fixed;left:50%;transform:translateX(-50%);top:60px;font-size:44px;font-weight:900;color:#FFD700;text-shadow:0 0 15px rgba(255,215,0,0.9),0 0 30px rgba(255,100,0,0.7),0 0 45px rgba(255,0,0,0.3);pointer-events:none;letter-spacing:3px;opacity:0;z-index:99;display:block}
-		.combo-display.active{opacity:1;animation:comboPulse 0.4s ease-out}
-		.life-lost{position:fixed;left:50%;transform:translateX(-50%);top:120px;font-size:48px;font-weight:900;color:#FF6B6B;text-shadow:0 0 20px rgba(255,107,107,1),0 0 40px rgba(255,0,0,0.8);pointer-events:none;letter-spacing:2px;opacity:0;z-index:99;animation:lifeLostPulse 0.6s ease-out}
-		@keyframes lifeLostPulse{0%{opacity:1;transform:translateX(-50%) scale(0.5)}50%{opacity:1;transform:translateX(-50%) scale(1.1)}100%{opacity:0;transform:translateX(-50%) scale(1)}}
-		#minigame{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:auto;height:auto;background:linear-gradient(135deg,#FFD700 0%,#FFA500 100%);display:none;align-items:center;justify-content:center;z-index:150;flex-direction:column;gap:20px;padding:30px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
-		#minigame.active{display:flex}
-		#minigame h1{display:block;color:white;font-size:36px;margin:0;text-shadow:2px 2px 4px rgba(0,0,0,0.3)}
-		#minigame p{color:white;font-size:16px;text-align:center;max-width:400px;margin:0}
-		.minigame-stats{background:rgba(255,255,255,0.95);padding:20px;border-radius:12px;font-size:20px;font-weight:bold;text-align:center;min-width:250px}
-		.minigame-stats div{margin:8px 0}
-		#minigameTimer{font-size:32px;color:#FF6B6B}
-		.secret-btn{position:fixed;background:transparent;border:none;padding:4px 8px;cursor:pointer;z-index:50;font-size:10px;opacity:0.1;transition:all 0.3s;color:rgba(100,149,237,0.15)}
-		.secret-btn:hover{opacity:1;background:rgba(255,255,0,0.3);border-radius:4px;color:#667eea}
-	</style>
+<title>Watermelon Fall</title>
+
+<style>
+
+	html, body {
+		height:100%;
+	}
+
+body {
+	margin: 0;
+	background: linear-gradient(to bottom, skyblue, lightgreen);
+	overflow: hidden;
+	font-family: Arial, Helvetica, sans-serif;
+	cursor: none;
+}
+
+#score {
+	position:absolute;
+	top: 10px;
+	left: 10px;
+	font-size: 30px;
+	font-weight: bold;
+	color: white;
+	text-shadow: 0 0 10px black;
+	z-index: 1000;
+}
+
+
+#slash {
+	position: absolute;
+	width: 8px;
+	height: 8px;
+	background: red;
+	border-radius: 50%;
+	pointer-events: none;
+}
+
+.trail {
+	position: absolute;
+	width: 12px;
+	height: 12px;
+	background: whitesmoke;
+	border-radius: 60%;
+	pointer-events: none;
+	box-shadow: 0 0 15px whitesmoke, 0 0 30px red;
+	animation: fadeOut 0.4s forwards;
+
+}
+@keyframes fadeOut {
+	to {
+		opacity: 0;
+		transform:scale(0.5);
+	}
+	
+}
+.watermelon {
+	width: 80px;
+	height: 80px;
+	border-radius: 50%;
+	position: absolute;
+	cursor: pointer;
+
+	background:
+		radial-gradient(circle at 30% 30%, #7CFC00, #0d5f0d 70%),
+		repeating-linear-gradient(
+			90deg,
+			#0d5f0d 0px,
+			#0d5f0d 8px,
+			#145214 8px,
+			#145214 16px
+		);
+
+	background-blend-mode: multiply;
+
+	box-shadow:
+		inset -10px -15px 25px rgba(0,0,0,0.4),
+		0px 8px 20px rgba(0,0,0,0.3);
+
+	transition: transform 0.2s;
+}
+
+.watermelon:hover {
+	transform: scale(1.1);
+}
+
+button {
+	padding: 12px 20px;
+	margin: 8px;
+	font-size: 16px;
+	font-weight: bold;
+	border-radius: 12px;
+	border: none;
+	cursor: pointer;
+	background: linear-gradient(to right, #56c556, #0d5f0d);
+	color: white;
+	box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+	transition: all 0.2s ease;
+}
+
+button:hover {
+	transform: translateY(-3px);
+	box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+}
+
+button:active {
+	transform: scale(0.95);
+}
+
+
+#menumelon {
+	width: 140px;
+	height: 140px;
+	border-radius: 50%;
+	background: radial-gradient(circle at 30% 30%, lightgreen, darkgreen);
+	border: 8px solid darkgreen;
+	box-shadow: 0 20px 40px black;
+	margin-bottom: 30px;
+	cursor: pointer;
+}
+
+#menu {
+	position: fixed;
+	width: 100%;
+	height: 100%;
+	background: skyblue;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	z-index: 20;
+	text-align: center;
+}
+
+
+#menu h1 {
+	font-size: 50px;
+	margin-bottom: 10px;
+}
+
+#menu p {
+	font-size: 20px;
+	margin-bottom: 30px;
+}
+#knife {
+	transform-origin: 10% 90%;
+	position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    transform: rotate(45deg);
+    transition: transform 0.1s;
+}
+
+@keyframes moveStripes {
+	from{
+		background-position: 0 0;
+	}
+	to {
+		background-position: 40px 0;
+	}
+}
+
+/*frost knife*/
+.knife-blue {
+	width: 70px;
+    height: 20px;
+    background: linear-gradient(to right, #00c6ff, #0072ff);
+    border-radius: 10px;
+    box-shadow: 0 0 10px #00c6ff;
+}
+
+/*blood-wanted knife*/
+.knife-red {
+	width: 70px;
+    height: 20px;
+    background: linear-gradient(to right, darkred, red);
+    border-radius: 10px;
+    box-shadow: 0 0 10px red;
+}
+
+/*sun knife*/
+.knife-orange {
+	width: 70px;
+    height: 20px;
+    background: linear-gradient(to right, orange, darkorange);
+    border-radius: 10px;
+    box-shadow: 0 0 10px orange;
+}
+
+/*candy-cane knife*/
+.candy-cane {
+    width: 20px;
+    height: 70px;
+	background:repeating-linear-gradient(
+	  45deg,               /* Diagonal angle */
+      #F73B3E,             /* Red stripe start */
+      #F73B3E 20px,        /* Red stripe thickness */
+      #FFFFFF 20px,        /* White stripe start */
+      #FFFFFF 40px         /* White stripe thickness */);
+	  background-size: 40px 40px;
+	  animation:  moveStripes 3s linear infinite;
+	border-radius: 15px;
+    position: relative;
+}
+/*found how to do it on web XD*/
+.candy-cane::before {
+    content: "";
+    position: absolute;
+    width: 40px;       /* diameter of curve */
+    height: 40px;
+    border-radius: 50%; /* makes a circle */
+	background:repeating-linear-gradient(
+	  45deg,               /* Diagonal angle */
+      #F73B3E,             /* Red stripe start */
+      #F73B3E 20px,        /* Red stripe thickness */
+      #FFFFFF 20px,        /* White stripe start */
+      #FFFFFF 40px         /* White stripe thickness */);
+	  background-size: 40px 40px;
+	  animation:  moveStripes 3s linear infinite;
+    
+    /* Show only the top-left quarter of the circle */
+    clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 50%, 50% 100%, 0 100%);
+}
+
+@keyframes shake {
+    0% { transform: translate(0px, 0px); }
+    25% { transform: translate(3px, -3px); }
+    50% { transform: translate(-3px, 3px); }
+    75% { transform: translate(3px, 3px); }
+    100% { transform: translate(0px, 0px); }
+}
+
+.hit {
+    animation: shake 0.15s;
+}
+
+@keyframes explodeJuice {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+.explode {
+    animation: explodeJuice 0.6s forwards;
+}
+
+.juice {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: red;
+    border-radius: 50%;
+    pointer-events: none;
+}
+#bossBar {
+	display: none;
+	position: absolute;
+	top: 15px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 400px;
+	height: 25px;
+	background: #111;
+	border-radius: 20px;
+	box-shadow: 0 0 20px red;
+	overflow: hidden;
+}
+
+#bossHealth {
+	height: 100%;
+	width: 100%;
+	background: linear-gradient(to right, red, darkred);
+	transition: width 0.2s;
+}
+
+
+.knife-blue::after,
+.knife-red::after,
+.knife-orange::after,
+.candy-cane::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 100%;
+    background: lightslategrey;
+    left: -30px;
+    transform: skewX(-20deg);
+    animation: shine 2s infinite;
+}
+
+@keyframes shine {
+    0% { left: -30px; }
+    100% { left: 100%; }
+}
+
+#warningText {
+    position: fixed;
+    top: 40%;
+    width: 100%;
+    text-align: center;
+    font-size: 60px;
+    font-weight: bold;
+    color: red;
+    text-shadow: 0 0 20px black;
+    display: none;
+    z-index: 2000;
+}
+
+
+.melonHealth {
+    position: absolute;
+    top: -10px;
+    left: 0;
+    width: 80px;
+    height: 6px;
+    background: #333;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.melonHealthFill {
+    height: 100%;
+    width: 100%;
+    background: limegreen;
+    transition: width 0.2s;
+}
+
+@keyframes screenShake {
+  0% { transform: translate(0); }
+  25% { transform: translate(5px, -5px); }
+  50% { transform: translate(-5px, 5px); }
+  75% { transform: translate(5px, 5px); }
+  100% { transform: translate(0); }
+}
+
+#comboText {
+	position:absolute;
+	top: 50px;
+	left: 10px;
+	font-size: 22px;
+	color: yellow;
+	font-weight: bold;
+	text-shadow: 0 0 10px black;
+}
+
+#bossBar {
+	display: none;
+	position: absolute;
+	top: 10px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+
+</style>
 </head>
 <body>
-	<div id="menu">
-		<h1>🍉 Watermelon Catch 🍉</h1>
-		<p>Catch the falling watermelons! Use the mouse or arrow keys.</p>
-		<button id="startBtn">Start Game</button>
-		<p style="font-size:12px;opacity:0.7">🔑 Hint: Press 'G' during the game for a surprise!</p>
-	</div>
-	<div id="minigame">
-		<h1>💰 GOLDEN RUSH 💰</h1>
-		<p>Catch ONLY golden watermelons for bonus coins!</p>
-		<div class="minigame-stats">
-			<div>Time: <span id="minigameTimer">30</span>s</div>
-			<div>Golden Caught: <span id="minigameCaught">0</span></div>
-			<div>Bonus Coins: <span id="minigameCoins">0</span></div>
+
+<div id="comboText"></div>
+
+<div id = "menu">
+	<h1>Watermelon Fall</h1>
+	<p>Slash the Watermelon to start XD</p>
+	<div id = "menumelon"></div>
+
+
+	<div id = "Skins">
+		<button onclick="setKnife('blue')">Cold Knife</button>
+		<button onclick="setKnife('red')">Blood-Wanted Knife</button>
+		<button onclick="setKnife('orange')">Sun-like Knife</button>
+		<button onclick="setKnife('candy')">Candy-Cane Knife</button>
+		<hr>
+		<h3>Maps</h3>
+		<button onclick="setMap('normal')">Normal</button>
+		<button onclick="setMap('xmas')">Xmas</button>
+		<button onclick="setMap('halloween')">Halloween</button>
+
 		</div>
-	</div>
-	<button class="secret-btn" id="secretBtn" title="...">·</button>
-	<button class="ui-toggle" id="uiToggle">☰</button>
-	<div class="speed-display">Speed: <span id="speedValue">1.0x</span></div>
-	<div class="combo-display" id="comboDisplay"></div>
-	<div class="life-lost" id="lifeLost">❌ LIFE LOST</div>
-	<div class="wrap">
-		<h1>Watermelon Catch</h1>
-		<div class="ui" id="uiPanel">
-			<h2>Stats</h2>
-			<div class="panel">Score: <strong id="score">0</strong></div>
-			<div class="panel">Coins: <strong id="coins">0</strong></div>
-			<div class="panel">Wave: <strong id="wave">1</strong></div>
-			<div class="panel">Lives: <strong id="lives">3</strong>❤️</div>
-			<hr>
-			<h2>Controls</h2>
-			<div class="small" style="margin-bottom:10px">🖱️ Mouse to move basket<br>⬅️ ➡️ Arrow keys</div>
-			<button id="shopBtn" style="width:100%;margin-bottom:8px">Shop & Upgrades</button>
-			<button id="restartBtn" style="width:100%;margin-bottom:8px">Restart Game</button>
-			<button id="menuBtn" style="width:100%">Back to Menu</button>
-		</div>
-		<canvas id="game"></canvas>
-	</div>
+</div>	
+<div id="score">Score: 0  </div>
+<div id="warningText"></div>
+<div id="knife"></div>
 
-	<div id="shop">
-		<h3>Shop & Upgrades</h3>
-		<div id="upgradesList"></div>
-		<div style="margin-top:10px;text-align:right"><button id="closeShop">Close</button></div>
-	</div>
-	<div id="msg"></div>
+<div id="bossBar">
+  <div id="bossHealth"></div>
+</div>
 
-	<script>
-	(function(){
-		const canvas = document.getElementById('game');
-		const ctx = canvas.getContext('2d');
-		const scoreEl = document.getElementById('score');
-		const coinsEl = document.getElementById('coins');
-		const waveEl = document.getElementById('wave');
-		const livesEl = document.getElementById('lives');
-		const lifeLostDisplay = document.getElementById('lifeLost');
-		const uiPanel = document.getElementById('uiPanel');
-		const uiToggle = document.getElementById('uiToggle');
-		const menu = document.getElementById('menu');
-		const startBtn = document.getElementById('startBtn');
-		const restartBtn = document.getElementById('restartBtn');
-		const menuBtn = document.getElementById('menuBtn');
-		const shopBtn = document.getElementById('shopBtn');
-		const shop = document.getElementById('shop');
-		const closeShop = document.getElementById('closeShop');
-		const upgradesList = document.getElementById('upgradesList');
-		const msg = document.getElementById('msg');
-		const comboDisplay = document.getElementById('comboDisplay');
-		const speedValue = document.getElementById('speedValue');
-		const minigame = document.getElementById('minigame');
-		const secretBtn = document.getElementById('secretBtn');
-		const minigameTimer = document.getElementById('minigameTimer');
-		const minigameCaught = document.getElementById('minigameCaught');
-		const minigameCoins = document.getElementById('minigameCoins');
+<script>
+let score = 0;
+let killCount = 0;
+let scoreText = document.getElementById("score");
+let knife = document.getElementById("knife")
+let nextBossAt = getRandomBossNumber();
+let bossActive = false;
+let normalMusic = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8f4c4dbe62.mp3");
+let bossMusic = new Audio("https://cdn.pixabay.com/download/audio/2022/10/25/audio_1c14a9b41f.mp3");
+let sliceSound = new Audio("https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8633d6b1a.mp3");
+let sliceCooldown = false;
+let currentMap = "normal";
+let combo = 0;
+let comboTimer;
+let slowMode = false;
 
-		// Menu controls
-		function showMenu(){ menu.classList.remove('hidden'); state.running = false; }
-		function hideMenu(){ menu.classList.add('hidden'); state.running = true; randomizeSecretButton(); }
-		startBtn.onclick = ()=>{ resetGame(); hideMenu(); };
-		menuBtn.onclick = ()=>{ showMenu(); };
-		restartBtn.onclick = ()=>{ if(confirm('Restart game?')) { resetGame(); hideMenu(); } };
-		
-		// Secret mini-game controls
-		function randomizeSecretButton(){
-			const positions = [
-				{top: '5%', left: '5%', right: 'auto', bottom: 'auto'},
-				{top: '5%', left: 'auto', right: '5%', bottom: 'auto'},
-				{top: 'auto', left: '5%', right: 'auto', bottom: '5%'},
-				{top: 'auto', left: 'auto', right: '5%', bottom: '5%'},
-				{top: '15%', left: '10%', right: 'auto', bottom: 'auto'},
-				{top: '50%', left: '2%', right: 'auto', bottom: 'auto', transform: 'translateY(-50%)'},
-				{top: 'auto', left: 'auto', right: '2%', bottom: '50%', transform: 'translateY(50%)'},
-				{top: '80%', left: '5%', right: 'auto', bottom: 'auto'},
-				{top: '20%', left: 'auto', right: '3%', bottom: 'auto'},
-				{top: 'auto', left: '50%', right: 'auto', bottom: '3%', transform: 'translateX(-50%)'},
-			];
-			const pos = positions[Math.floor(Math.random() * positions.length)];
-			Object.assign(secretBtn.style, pos);
+normalMusic.loop = true;
+bossMusic.loop = true;
+
+function getRandomBossNumber() {
+    return Math.floor(Math.random() * 21) + 20; 
+}
+
+document.addEventListener("mousemove", function(e) {
+    knife.style.left = (e.clientX - 15) + "px";
+    knife.style.top = (e.clientY - 60) + "px";
+
+    if (isSlicing) {
+        knife.style.transform = "rotate(120deg)";
+        setTimeout(() => {
+            knife.style.transform = "rotate(45deg)";
+        }, 100);
+    }
+});
+
+knife.style.left = "100px";
+knife.style.top = "100px";
+
+function spawnWatermelons() {
+	for (let i = 0; i < 3; i++) {
+		createWatermelon();
+	}
+}
+
+document.addEventListener("keydown", function(e){
+    if (e.key === "Shift" && !slowMode) {
+        activateSlowMo();
+    }
+});
+
+//if hold shift, slow-motion will appear
+function activateSlowMo() {
+
+    slowMode = true;
+    document.body.style.filter = "blur(2px)";
+
+    let allMelons = document.querySelectorAll(".watermelon");
+
+    allMelons.forEach(m => {
+        m.style.transition = "top 1s linear";
+    });
+
+    setTimeout(() => {
+        document.body.style.filter = "";
+        slowMode = false;
+    }, 3000);
+}
+
+
+function setMap(type) {
+    currentMap = type;
+
+    if (type === "normal") {
+        document.body.style.background =
+            "linear-gradient(to bottom, skyblue, lightgreen)";
+    }
+
+    if (type === "xmas") {
+        document.body.style.background =
+            "linear-gradient(to bottom, #002244, #004400)";
+    }
+
+    if (type === "halloween") {
+        document.body.style.background =
+            "linear-gradient(to bottom, black, darkorange)";
+    }
+}
+
+
+function createJuice(x, y) {
+    for (let i = 0; i < 12; i++) {
+        const drop = document.createElement("div");
+        drop.classList.add("juice");
+        document.body.appendChild(drop);
+
+        drop.style.left = x + "px";
+        drop.style.top = y + "px";
+
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * 100;
+
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance;
+
+        drop.animate([
+            { transform: "translate(0,0)", opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px)`, opacity: 0 }
+        ], {
+            duration: 600,
+            easing: "ease-out"
+        });
+
+        setTimeout(() => drop.remove(), 600);
+    }
+}
+
+
+function setKnife(type) {
+    knife.className = "";
+    knife.dataset.trail = type;
+
+    if (type === "blue") {
+        knife.classList.add("knife-blue");
+    }
+    else if (type === "red") {
+        knife.classList.add("knife-red");
+    }
+    else if (type === "orange") {
+        knife.classList.add("knife-orange");
+    }
+    else if (type === "candy") {
+        knife.classList.add("candy-cane");
+    }
+}
+
+setKnife("blue");
+
+function createWatermelon() {
+	let melon = document.createElement("div");
+	melon.classList.add("watermelon");
+	melon.dataset.hp = 3;
+	melon.dataset.maxhp = 3; // normal melons have 3 HP
+	melon.style.left = Math.random() * (window.innerWidth - 60) + "px";
+	melon.style.top = "0px";
+	document.body.appendChild(melon);
+	applyMelonDesign(melon);
+	let healthBar = document.createElement("div");
+	healthBar.classList.add("melonHealth");
+
+	let healthFill = document.createElement("div");
+	healthFill.classList.add("melonHealthFill");
+
+	healthBar.appendChild(healthFill);
+	melon.appendChild(healthBar);
+
+
+	let position = 0;
+	let fall = setInterval(function() {
+		position += 5;
+		melon.style.top = position +"px"
+
+		if (position  > window.innerHeight){
+		melon.remove();
+		clearInterval(fall);
 		}
-		
-		function startMiniGame(){
-			if(!state.running || state.inMiniGame) return;
-			state.inMiniGame = true;
-			state.miniGameTime = 30;
-			state.miniGameCaught = 0;
-			state.miniGameCoins = 0;
-			minigame.classList.add('active');
-			secretBtn.textContent = '·';
-			secretBtn.disabled = true;
+	}, 30);
+
+
+//slice the very yummy watermelon XD
+melon.addEventListener("click", function()  {
+	melon.style.transform = "scale(1.3)";
+	melon.style.background = "red";
+	score++	;
+
+	scoreText.innerText = "Score: " + score;
+	
+})
+}
+
+let isSlicing = false;
+document.addEventListener("mousedown", function(){
+	isSlicing = true;
+});
+
+document.addEventListener("mouseup", function() {
+	isSlicing = false;
+});
+
+document.addEventListener("mousemove", function(event) {
+	if (isSlicing) {
+		checkSlice(event.clientX, event.clientY);
+		createTrail(event.clientX, event.clientY);
+	}
+});
+
+//watermelivees and destroy
+function destroyWatermelon(melon) {
+    const rect = melon.getBoundingClientRect();
+    createJuice(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+    melon.classList.add("explode");
+
+    setTimeout(() => {
+        if (melon.classList.contains("boss")) {
+			document.getElementById("bossBar").style.display = "none";
+            bossActive = false;
+			bossMusic.pause();
+    		normalMusic.play();
+        }
+        melon.remove();
+    }, 600);
+}
+
+
+
+function checkSlice(x, y){
+	let menuMelon = document.getElementById("menumelon");
+	
+	if (sliceCooldown) return;
+
+	sliceCooldown = true;
+	setTimeout(() => {
+	    sliceCooldown = false;
+	}, 100);
+	
+	if (menuMelon) {
+		let rect = menuMelon.getBoundingClientRect();
+
+		if (
+			x > rect.left &&
+			x < rect.right &&
+			y < rect.bottom &&
+			y > rect.top
+		) {
+			startGame();
 		}
-		
-		function endMiniGame(){
-			state.inMiniGame = false;
-			state.coins += state.miniGameCoins;
-			minigame.classList.remove('active');
-			secretBtn.textContent = '·';
-			secretBtn.disabled = false;
-			randomizeSecretButton();
-			showMsg(`Golden Rush Complete! +${state.miniGameCoins} bonus coins!`);
-			save();
-		}
-		
-		secretBtn.onclick = startMiniGame;
-		window.addEventListener('keydown', e=>{
-			if((e.key === 'g' || e.key === 'G') && state.running && !state.inMiniGame) startMiniGame();
-		});
-		
-		// UI toggle
-		uiToggle.onclick = ()=>{ uiPanel.classList.toggle('open'); };
+	}
 
-		// Calculate fullscreen canvas dimensions
-		function getCanvasDimensions(){
-			return { w: window.innerWidth, h: window.innerHeight };
-		}
+	let melons = document.querySelectorAll(".watermelon");
+	melons.forEach(function(melon) {
+		let rect = melon.getBoundingClientRect();
 
-		function resizeCanvas(){
-			const dims = getCanvasDimensions();
-			canvas.width = dims.w;
-			canvas.height = dims.h;
-		}
+		if (
+			x > rect.left &&
+			x < rect.right &&
+			y > rect.top &&
+			y < rect.bottom 
+		) {
+			let currentHP = parseInt(melon.dataset.hp);
+			currentHP--;
+			sliceSound.currentTime = 0;
+			sliceSound.play();
+			melon.dataset.hp = currentHP;
+			melon.classList.add("hit");
+			setTimeout(() => melon.classList.remove("hit"), 150);
 
-		resizeCanvas();
-		let W = canvas.width, H = canvas.height;
+			let healthFill = melon.querySelector(".melonHealthFill");
+			let maxHP = parseInt(melon.dataset.maxhp);
+			healthFill.style.width = (currentHP / maxHP) * 100 + "%";
 
-		window.addEventListener('resize', ()=>{
-			resizeCanvas();
-			W = canvas.width;
-			H = canvas.height;
-			state.basket.scaleToCanvas();
-		});
 
-		class Basket{
-			constructor(){
-				this.baseW = 120;
-				this.w = this.baseW;
-				this.h = 28;
-				this.x = W/2 - this.w/2;
-				this.y = H - 40;
-				this.speed = 8;
-				this.catchFlash = 0;
-			}
-			scaleToCanvas(){
-				this.w = (W / 720) * this.baseW;
-				this.h = (H / 540) * 28;
-				this.y = H - (40 * H / 540);
-				this.speed = 8 * (W / 720);
-			}
-			draw(){
-				// Flash animation on catch
-				const flashAlpha = Math.max(0, this.catchFlash);
-				this.catchFlash = Math.max(0, this.catchFlash - 0.1);
-				
-				// Main basket body
-				ctx.fillStyle='#6b3'; 
-				ctx.fillRect(this.x,this.y,this.w,this.h); 
-				ctx.fillStyle='#442'; 
-				ctx.fillRect(this.x+6,this.y-6,this.w-12,6);
-				
-				// Glow effect
-				ctx.shadowColor = `rgba(107, 187, 51, ${0.5 + flashAlpha * 0.5})`;
-				ctx.shadowBlur = 15 + flashAlpha * 20;
-				ctx.shadowOffsetX = 0;
-				ctx.shadowOffsetY = 0;
-				ctx.strokeStyle = '#4a8a2a';
-				ctx.lineWidth = 2;
-				ctx.strokeRect(this.x,this.y,this.w,this.h);
-				
-				// Flash effect
-				if(flashAlpha > 0){
-					ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
-					ctx.fillRect(this.x,this.y,this.w,this.h);
+			if (currentHP <= 0 && !melon.classList.contains("dead")) {
+				melon.classList.add("dead");
+				destroyWatermelon(melon);
+
+    			score++;
+    			killCount++;
+				combo++;
+				clearTimeout(comboTimer);
+				let comboText = document.getElementById("comboText");
+				comboText.innerText = combo >= 2 ? " Combo x" + combo : "";
+				if (combo >= 5) {
+					document.body.style.background = "white";
+					setTimeout(() => {
+						setMap(currentMap);
+					}, 100);
 				}
-				
-				ctx.shadowBlur = 0;
-			}
-			moveTo(x){ this.x = Math.max(6, Math.min(W-this.w-6, x - this.w/2)); }
-			step(dir){ this.x = Math.max(6, Math.min(W-this.w-6, this.x + dir*this.speed)); }
-		}
 
-		class Watermelon{
-			constructor(x,y,vy,type='normal'){
-				this.x=x;this.y=y;this.vy=vy;this.type=type;this.r=type==='small'?14:22;this.caught=false;
-				this.baseR = this.r;
-				this.rotation = 0;
-				this.rotationSpeed = Math.random() * 6 + 3;
-				this.trail = [];
-				this._setProps();
-			}
-			_setProps(){
-				const t=this.type;
-				const scale = W / 720;
-				if(t==='fast'){this.color='#ff6b6b';this.points=15;this.vy*=1.6;this.rotationSpeed*=1.5}
-				else if(t==='gold'){this.color='#ffd86b';this.points=50; this.r=26*scale}
-				else if(t==='heavy'){this.color='#9ae6b4';this.points=25; this.vy*=0.8; this.r=28*scale;this.rotationSpeed*=0.6}
-				else {this.color='#4caf50';this.points=10}
-				if(t !== 'gold' && t !== 'heavy') this.r = this.baseR * scale;
-			}
-			update(dt, effects){
-				this.y += this.vy * dt * (effects.slow ? 0.6 : 1) * state.gameSpeed;
-				this.rotation += this.rotationSpeed * dt;
-				this.trail.push({x: this.x, y: this.y, life: 0.5});
-				this.trail = this.trail.filter(p => p.life > 0);
-				this.trail.forEach(p => p.life -= dt);
-				if(effects.magnet){ /* pull towards basket center handled in game loop */ }
-			}
-			draw(){ 
-				ctx.save();
-				// Draw trail
-				this.trail.forEach((p, i) => {
-					ctx.globalAlpha = (p.life / 0.5) * 0.3;
-					ctx.fillStyle = this.color;
-					ctx.beginPath();
-					ctx.arc(p.x, p.y, this.r * 0.6, 0, Math.PI * 2);
-					ctx.fill();
-				});
-				ctx.globalAlpha = 1;
-				ctx.translate(this.x, this.y);
-				ctx.rotate(this.rotation);
-				ctx.beginPath(); 
-				ctx.fillStyle=this.color; 
-				ctx.ellipse(0,0,this.r,this.r*0.86,0,0,Math.PI*2); 
-				ctx.fill();
-				ctx.fillStyle='#2c7'; 
-				ctx.fillRect(-4,-3,8,3);
-				ctx.fillStyle='rgba(255,255,255,0.4)';
-				ctx.beginPath();
-				ctx.ellipse(-this.r*0.3, -this.r*0.3, this.r*0.3, this.r*0.2, 0, 0, Math.PI*2);
-				ctx.fill();
-				ctx.restore();
-			}
-		}
-		
-		class Particle{
-			constructor(x, y, vx, vy, life, color, size){
-				this.x = x; this.y = y; this.vx = vx; this.vy = vy;
-				this.life = life; this.maxLife = life;
-				this.color = color; this.size = size;
-			}
-			update(dt){
-				this.x += this.vx * dt;
-				this.y += this.vy * dt;
-				this.vy += 200 * dt;
-				this.life -= dt;
-			}
-			draw(){
-				const alpha = this.life / this.maxLife;
-				ctx.globalAlpha = alpha;
-				ctx.fillStyle = this.color;
-				ctx.beginPath();
-				ctx.arc(this.x, this.y, this.size * (1 - (1 - alpha)), 0, Math.PI * 2);
-				ctx.fill();
-			}
-		}
 
-		const state = {
-			basket: new Basket(),
-			watermelons: [],
-			particles: [],
-			score: 0,
-			coins: 0,
-			wave: 1,
-			lives: 3,
-			maxLives: 3,
-			spawnTimer:0,
-			spawnInterval:1.0,
-			running:false,
-			gameSpeed: 1.0,
-			inMiniGame: false,
-			miniGameTime: 0,
-			miniGameCaught: 0,
-			miniGameCoins: 0,
-			screenShake: 0,
-			effects:{ slow:false, magnet:false, double:false },
-			upgrades:[],
-		};
-		state.basket.scaleToCanvas();
+				comboTimer = setTimeout(() => {
+    				combo = 0;
+					document.getElementById("comboText").innerText = "";
+				}, 1500);
 
-		const saved = JSON.parse(localStorage.getItem('wm_state')||'{}');
-		state.coins = saved.coins||0; state.score = saved.score||0; state.upgrades = saved.upgrades||[];
-
-		const baseTypes = ['normal','fast','gold','heavy'];
-
-		const upgrades = [
-			{id:'basket_size',name:'Wider Basket',desc:'Increase basket width',cost:50,level: saved.upgrades?.basket_size||0, max:5, apply(level){ state.basket.baseW = 120 + level*20; state.basket.scaleToCanvas(); }},
-			{id:'basket_speed',name:'Basket Speed',desc:'Move faster',cost:80,level: saved.upgrades?.basket_speed||0, max:5, apply(level){ state.basket.speed = (8 + level*2) * (W/720); }},
-			{id:'slow',name:'Slow Fall',desc:'Slow watermelons down',cost:100,level: saved.upgrades?.slow||0, max:3, apply(level){ state.effects.slow = level>0 }},
-			{id:'magnet',name:'Magnet Field',desc:'Attract watermelons',cost:150,level: saved.upgrades?.magnet||0, max:3, apply(level){ state.effects.magnet = level>0 }},
-			{id:'spawn_rate',name:'Spawn Rate',desc:'More watermelons',cost:180,level: saved.upgrades?.spawn_rate||0, max:5, apply(level){ state.spawnRateMultiplier = Math.max(0.35, 1 - 0.14*level) }},
-			{id:'double',name:'Double Points',desc:'2x points earned',cost:300,level: saved.upgrades?.double||0, max:1, apply(level){ state.effects.double = level>0 }},
-			{id:'game_speed',name:'Speed Boost',desc:'Game runs faster',cost:120,level: saved.upgrades?.game_speed||0, max:5, apply(level){ state.gameSpeed = 1.0 + level*0.2; }},
-			{id:'coin_multiplier',name:'Coin Riches',desc:'Earn more coins',cost:200,level: saved.upgrades?.coin_multiplier||0, max:4, apply(level){ state.coinMultiplier = 1.0 + level*0.25; }},
-			{id:'combo',name:'Combo Streak',desc:'Bonus for catches',cost:250,level: saved.upgrades?.combo||0, max:3, apply(level){ state.comboEnabled = level>0; state.comboMultiplier = level; }},
-		];
-
-		function save(){
-			localStorage.setItem('wm_state', JSON.stringify({coins:state.coins,score:state.score,upgrades: Object.fromEntries(upgrades.map(u=>[u.id,u.level]))}));
-		}
-
-		function spawnWatermelon(){
-			const x = (W * 20/720) + Math.random() * (W - (40 * W/720));
-			const baseVy = 80 + state.wave*10 + Math.random()*40;
-			let type='normal';
-			
-			if(state.inMiniGame){
-				type = 'gold';
-			} else {
-				const r = Math.random();
-				if(r>0.985) type='gold';
-				else if(r>0.9) type='fast';
-				else if(r>0.8) type='heavy';
-			}
-			const w = new Watermelon(x,-30, baseVy, type);
-			state.watermelons.push(w);
-		}
-
-		let last = performance.now();
-		function loop(now){
-			const dt = (now-last)/1000; last=now;
-			update(dt);
-			draw();
-			requestAnimationFrame(loop);
-		}
-
-		function update(dt){
-			if(!state.running) return;
-			
-			// Update screen shake
-			state.screenShake = Math.max(0, state.screenShake - dt);
-			
-			// Update particles
-			for(let i = state.particles.length - 1; i >= 0; i--){
-				state.particles[i].update(dt);
-				if(state.particles[i].life <= 0){
-					state.particles.splice(i, 1);
+				if (combo >= 3) {
+    				score += combo; // bonus points
 				}
-			}
-			
-			// Mini-game timer
-			if(state.inMiniGame){
-				state.miniGameTime -= dt;
-				minigameTimer.textContent = Math.max(0, Math.ceil(state.miniGameTime));
-				if(state.miniGameTime <= 0){
-					endMiniGame();
-					return;
-				}
-			}
-			
-			state.spawnTimer -= dt;
-			const effectiveInterval = (state.spawnInterval || 0.9) * (state.spawnRateMultiplier || 1);
-			const spawnRate = state.inMiniGame ? effectiveInterval * 0.5 : effectiveInterval;
-			if(state.spawnTimer <=0){ spawnWatermelon(); state.spawnTimer = spawnRate; }
-			// effects from upgrades
-			upgrades.forEach(u=>u.apply && u.apply(u.level));
 
-			// update watermelons
-			for(let i=state.watermelons.length-1;i>=0;i--){
-				const w = state.watermelons[i];
-				if(state.effects.magnet){ const bx = state.basket.x + state.basket.w/2; const dx = bx - w.x; w.x += dx*0.06; }
-				w.update(dt, state.effects);
-				if(w.y - w.r > H){ // missed
-					// Create explosion effect for missed watermelon
-					createExplosion(w.x, H, '#ff0000', 12);
-					comboCatch = 0;
-					state.screenShake = 0.4;
-					state.lives--;
-					// Trigger life lost animation
-					lifeLostDisplay.style.animation = 'none';
-					setTimeout(() => lifeLostDisplay.style.animation = 'lifeLostPulse 0.6s ease-out', 10);
-					if(state.lives <= 0){
-						state.running = false;
-						showMsg('GAME OVER!');
-						showMenu();
-					}
-					state.watermelons.splice(i,1);
-				} else if(collide(w, state.basket)){
-					catchWM(w);
-					state.watermelons.splice(i,1);
-				}
-			}
-			// slowly increase difficulty
-			if(Math.random() < 0.002) state.wave += 1;
-			// update UI
-			scoreEl.textContent = state.score;
-			coinsEl.textContent = state.coins;
-			waveEl.textContent = state.wave;
-			livesEl.textContent = state.lives;
-			speedValue.textContent = state.gameSpeed.toFixed(1) + 'x';
+
+    			scoreText.innerText = "Score: " + score;
+
+    			if (!melon.classList.contains("boss")) {
+        			if (!bossActive && killCount >= nextBossAt) {
+            			spawnBoss();
+            			nextBossAt = killCount + getRandomBossNumber();
+        }
+    }
+	if (melon.classList.contains("boss")) {
+	let bossBar = document.getElementById("bossHealth");
+	let maxHP = parseInt(melon.dataset.maxhp);
+	let currentHP = parseInt(melon.dataset.hp);
+	bossBar.style.width = (currentHP / maxHP) * 100 + "%";
+}
+
+}
+
 		}
+	});
+}
 
-		let comboCatch = 0;
-		function catchWM(w){
-			state.basket.catchFlash = 1;
-			if(state.inMiniGame){
-				if(w.type === 'gold'){
-					state.miniGameCaught++;
-					const bonus = Math.floor(100 * (1 + state.miniGameCaught * 0.05));
-					state.miniGameCoins += bonus;
-					minigameCaught.textContent = state.miniGameCaught;
-					minigameCoins.textContent = state.miniGameCoins;
-					showMsg(`+${bonus} coins!`);
-					createCatchExplosion(state.basket.x + state.basket.w/2, state.basket.y, '#ffd86b', 12);
-				} else {
-					showMsg('-10 penalty (wrong type!)');
-					state.miniGameCoins = Math.max(0, state.miniGameCoins - 10);
-					minigameCoins.textContent = state.miniGameCoins;
-					createExplosion(state.basket.x + state.basket.w/2, state.basket.y, '#ff6b6b', 5);
-				}
-			} else {
-				let pts = state.effects.double ? w.points*2 : w.points;
-				if(state.comboEnabled) {
-					comboCatch++;
-					pts = Math.floor(pts * (1 + comboCatch * 0.1));
-				}
-				state.score += pts;
-				const coins = Math.floor(pts / 1 * (state.coinMultiplier || 1));
-				state.coins += coins;
-				const msg_text = state.comboEnabled && comboCatch > 1 ? `+${pts} pts (${comboCatch}x!)` : `+${pts} pts`;
-				showMsg(msg_text);
-				createCatchExplosion(w.x, w.y, w.color, 10);
-			}
-			save();
-		}
+function spawnBoss() {
+	document.getElementById("bossBar").style.display = "block";
+    if (bossActive) return;  // safety lock
+	normalMusic.pause();
+	bossMusic.currentTime = 0;
+	bossMusic.play();
 
-		function collide(w,b){
-			return w.y + w.r > b.y && w.x > b.x && w.x < b.x + b.w;
-		}
+    bossActive = true;
 
-		function createExplosion(x, y, color, particleCount){
-			for(let i = 0; i < particleCount; i++){
-				const angle = (Math.PI * 2 * i) / particleCount;
-				const speed = 100 + Math.random() * 100;
-				const vx = Math.cos(angle) * speed;
-				const vy = Math.sin(angle) * speed - 50;
-				const p = new Particle(x, y, vx, vy, 0.8, color, 6);
-				state.particles.push(p);
-			}
-		}
+    let warning = document.getElementById("warningText");
 
-		function createCatchExplosion(x, y, color, particleCount){
-			for(let i = 0; i < particleCount; i++){
-				const angle = (Math.PI * 2 * i) / particleCount;
-				const speed = 150 + Math.random() * 100;
-				const vx = Math.cos(angle) * speed;
-				const vy = Math.sin(angle) * speed - 100;
-				const p = new Particle(x, y, vx, vy, 0.6, color, 5);
-				state.particles.push(p);
-			}
-		}
+    warning.innerText = "!BOSS IS COMING!";
+    warning.style.display = "block";
+	document.body.style.animation = "screenShake 0.4s";
+	setTimeout(() => {
+    	document.body.style.animation = "";
+	}, 400);
 
-		function drawBackground(){
-			// subtle tiled watermelons for a pretty background
-			const scale = W / 720;
-			ctx.save();
-			ctx.globalAlpha = 0.09;
-			for(let y=40*scale;y<H;y+=64*scale){
-				for(let x=(y%(128*scale)===0?20*scale:60*scale);x<W;x+=96*scale){
-					drawDecorWatermelon(x,y,18*scale,'#2e8b57');
-				}
-			}
-			ctx.restore();
-			
-			// clouds with animation
-			const cloudScale = scale;
-			const time = performance.now() * 0.001;
-			for(let i=0;i<6;i++){ 
-				ctx.fillStyle='rgba(255,255,255,0.6)'; 
-				ctx.beginPath(); 
-				ctx.ellipse((80+i*110)*cloudScale + Math.sin(time + i) * 10, 60*cloudScale, 40*cloudScale, 20*cloudScale, 0, 0, Math.PI*2); 
-				ctx.fill(); 
-			}
-			
-			// Magnet effect visual
-			if(state.effects.magnet){
-				ctx.save();
-				ctx.globalAlpha = 0.15;
-				ctx.strokeStyle = '#667eea';
-				ctx.lineWidth = 2;
-				const bx = state.basket.x + state.basket.w/2;
-				const by = state.basket.y;
-				for(let i = 0; i < 3; i++){
-					const r = 40 + i * 30;
-					ctx.beginPath();
-					ctx.arc(bx, by, r, 0, Math.PI * 2);
-					ctx.stroke();
-				}
-				ctx.restore();
-			}
-			
-			// Slow effect visual
-			if(state.effects.slow){
-				ctx.save();
-				ctx.globalAlpha = 0.08;
-				ctx.fillStyle = '#87CEEB';
-				for(let i = 0; i < 5; i++){
-					const y = (performance.now() * 0.05 + i * H / 5) % H;
-					ctx.fillRect(0, y, W, 20);
-				}
-				ctx.restore();
-			}
-		}
+    document.body.style.animation = "shake 0.5s";
 
-		function drawDecorWatermelon(x,y,r,color){
-			ctx.beginPath(); ctx.fillStyle = color; ctx.ellipse(x,y,r,r*0.86,0,0,Math.PI*2); ctx.fill();
-			ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(x-4,y-3,8,3);
-		}
+    setTimeout(() => {
+        document.body.style.animation = "";
+        warning.style.display = "none";
+        createBossWatermelon();
+    }, 2000);
+}
 
-		function draw(){
-			// Screen shake effect
-			const shake = state.screenShake * 5;
-			const offsetX = (Math.random() - 0.5) * shake;
-			const offsetY = (Math.random() - 0.5) * shake;
-			
-			ctx.save();
-			ctx.translate(offsetX, offsetY);
-			
-			ctx.clearRect(-offsetX,-offsetY,W,H);
-			drawBackground();
-			// draw watermelons
-			state.watermelons.forEach(w=>w.draw());
-			// draw particles
-			state.particles.forEach(p=>p.draw());
-			// draw basket
-			state.basket.draw();
-			
-			ctx.globalAlpha = 1;
-			ctx.restore();
-		}
 
-		// input
-		canvas.addEventListener('mousemove', e=>{
-			const rect = canvas.getBoundingClientRect(); state.basket.moveTo(e.clientX - rect.left);
-		});
-		let left=false,right=false;
-		window.addEventListener('keydown', e=>{ if(e.key==='ArrowLeft') left=true; if(e.key==='ArrowRight') right=true; });
-		window.addEventListener('keyup', e=>{ if(e.key==='ArrowLeft') left=false; if(e.key==='ArrowRight') right=false; });
-		function keyStep(){ if(left) state.basket.step(-1); if(right) state.basket.step(1); }
-		setInterval(keyStep,16);
+function createBossWatermelon() {
+    let melon = document.createElement("div");
+    melon.classList.add("watermelon");
+	applyMelonDesign(melon);
+    melon.style.width = "150px";
+    melon.style.height = "150px";
+    melon.style.background =
+        "radial-gradient(circle at 30% 30%, #ff4d4d, #660000)";
 
-		// shop UI
-		function renderShop(){
-			upgradesList.innerHTML='';
-			upgrades.forEach(u=>{
-				const div = document.createElement('div'); div.className='upgrade';
-				const left = document.createElement('div'); left.innerHTML = `<strong>${u.name}</strong><div class="small">${u.desc}</div>`;
-				const right = document.createElement('div');
-				const cost = u.cost * Math.max(1, Math.pow(1.6, u.level));
-				right.innerHTML = `<div style="text-align:right">Level ${u.level}/${u.max}<div class="small">Cost: ${Math.floor(cost)}</div></div>`;
-				const buy = document.createElement('button'); buy.textContent='Buy'; buy.style.marginLeft='8px';
-				buy.disabled = u.level>=u.max || state.coins < Math.floor(cost);
-				buy.onclick = ()=>{ if(state.coins >= Math.floor(cost) && u.level < u.max){ state.coins -= Math.floor(cost); u.level++; if(u.apply) u.apply(u.level); showMsg('Purchased '+u.name); save(); renderShop(); } };
-				right.appendChild(buy);
-				div.appendChild(left); div.appendChild(right);
-				upgradesList.appendChild(div);
-			});
-		}
+   	melon.dataset.maxhp = 15;
+	melon.dataset.hp = 15;
+	melon.classList.add("boss");
+    melon.style.left = (window.innerWidth / 2 - 75) + "px";
+    melon.style.top = "50px";
 
-		shopBtn.onclick = ()=>{ shop.style.display='block'; renderShop(); };
-		closeShop.onclick = ()=>{ shop.style.display='none'; };
+    document.body.appendChild(melon);
 
-		function resetGame(){ 
-			state.score=0; 
-			state.coins=0; 
-			state.wave=1; 
-			state.lives=state.maxLives; 
-			state.watermelons=[]; 
-			state.particles=[]; 
-			state.gameSpeed = 1.0;
-			comboCatch = 0;
-			upgrades.forEach(u=>u.level=0); 
-			save(); 
-		}
+    // add boss health bar
+    let healthBar = document.createElement("div");
+    healthBar.classList.add("melonHealth");
+    healthBar.style.width = "150px";
 
-		function showMsg(t){ msg.textContent = t; msg.style.display='block'; clearTimeout(msg._t); msg._t = setTimeout(()=>msg.style.display='none',900); }
+    let healthFill = document.createElement("div");
+    healthFill.classList.add("melonHealthFill");
 
-		// initialize upgrades levels from saved
-		upgrades.forEach(u=>{ u.level = (saved.upgrades && saved.upgrades[u.id])||0; if(u.apply) u.apply(u.level); });
+    healthBar.appendChild(healthFill);
+    melon.appendChild(healthBar);
+	setTimeout(() => {
+    	if (document.body.contains(melon)) {
+        	melon.style.background = "black";
+        	melon.style.boxShadow = "0 0 40px red";
+    	}
+	}, 10000);
 
-		// start spawn pace
-		state.spawnInterval = 0.9;
-		state.spawnTimer = 0.5;
+	let shootInterval = setInterval(() => {
 
-		requestAnimationFrame(loop);
-		// autosave periodically
-		setInterval(save,5000);
+    	if (!document.body.contains(melon)) {
+        	clearInterval(shootInterval);
+        	return;
+    	}
 
-		// small performance/tuning: increase spawn rate slowly
-		setInterval(()=>{ if(state.running) state.spawnInterval = Math.max(0.35, state.spawnInterval - 0.01); },5000);
+    	shootSeed(melon);
 
-	})();
-	</script>
+	}, 1500);
+
+
+}
+
+function shootSeed(boss) {
+
+    let seed = document.createElement("div");
+    seed.style.position = "absolute";
+    seed.style.width = "10px";
+    seed.style.height = "10px";
+    seed.style.background = "black";
+    seed.style.borderRadius = "50%";
+
+    document.body.appendChild(seed);
+
+    let rect = boss.getBoundingClientRect();
+
+    let x = rect.left + rect.width / 2;
+    let y = rect.top + rect.height / 2;
+
+    seed.style.left = x + "px";
+    seed.style.top = y + "px";
+
+    let angle = Math.random() * Math.PI * 2;
+    let speed = 5;
+
+    let move = setInterval(() => {
+        x += Math.cos(angle) * speed;
+        y += Math.sin(angle) * speed;
+
+        seed.style.left = x + "px";
+        seed.style.top = y + "px";
+
+        if (
+            x < 0 || x > window.innerWidth ||
+            y < 0 || y > window.innerHeight
+        ) {
+            clearInterval(move);
+            seed.remove();
+        }
+
+    }, 30);
+}
+
+
+function applyMelonDesign(melon) {
+
+    if (currentMap === "normal") {
+        melon.style.background =
+            "radial-gradient(circle at 30% 30%, #56c556, #0d5f0d)";
+    }
+
+    if (currentMap === "xmas") {
+        melon.style.background =
+            "radial-gradient(circle at 30% 30%, red, darkred)";
+        melon.innerText = "🎄";
+        melon.style.fontSize = "40px";
+        melon.style.display = "flex";
+        melon.style.alignItems = "center";
+        melon.style.justifyContent = "center";
+    }
+
+    if (currentMap === "halloween") {
+        melon.style.background =
+            "radial-gradient(circle at 30% 30%, orange, darkorange)";
+        melon.innerText = "🎃";
+        melon.style.fontSize = "40px";
+        melon.style.display = "flex";
+        melon.style.alignItems = "center";
+        melon.style.justifyContent = "center";
+    }
+}
+
+
+
+function startGame() {
+	document.getElementById("menu").style.display = "none";
+	setInterval(spawnWatermelons, 3000)
+	normalMusic.play();
+}
+
+function createTrail(x, y) {
+    let trail = document.createElement("div");
+    trail.classList.add("trail");
+
+    let color = "white";
+
+    if (knife.dataset.trail === "blue") color = "#00c6ff";
+    if (knife.dataset.trail === "red") color = "red";
+    if (knife.dataset.trail === "orange") color = "orange";
+    if (knife.dataset.trail === "candy") color = "#F73B3E";
+
+    trail.style.background = color;
+    trail.style.boxShadow = `0 0 15px ${color}, 0 0 30px ${color}`;
+
+    trail.style.left = x + "px";
+    trail.style.top = y + "px";
+
+    document.body.appendChild(trail);
+
+    setTimeout(() => {
+        trail.remove();
+    }, 400);
+}
+
+
+</script>
 </body>
 </html>
